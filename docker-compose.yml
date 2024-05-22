@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    environment:
+      - MAX_HEAP_SIZE=512M
+      - HEAP_NEWSIZE=100M
+    networks:
+      - janusgraph-net
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  elasticsearch:
+    image: elasticsearch:8.6.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - bootstrap.memory_lock=false
+      - indices.memory.index_buffer_size=20%
+      - indices.queries.cache.size=1%
+      - indices.fielddata.cache.size=10%
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - janusgraph-net
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  janusgraph:
+    image: janusgraph/janusgraph:latest
+    container_name: janusgraph
+    ports:
+      - "8182:8182"
+    environment:
+      - JANUS_STORAGE_BACKEND=cassandra
+      - JANUS_STORAGE_HOSTS=cassandra
+      - JANUS_INDEX_BACKEND=elasticsearch
+      - JANUS_INDEX_HOSTS=elasticsearch
+      - JAVA_OPTIONS=-Xms256m -Xmx512m
+    depends_on:
+      - cassandra
+      - elasticsearch
+    networks:
+      - janusgraph-net
+
+networks:
+  janusgraph-net:
+    name: janusgraph-net
+
+volumes:
+  cassandra_data:
